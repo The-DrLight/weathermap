@@ -1,4 +1,4 @@
-"""Fetches live and historical atmospheric data for Lagos from Open-Meteo."""
+"""Fetches live and historical atmospheric data from Open-Meteo, defaulting to Lagos."""
 
 from datetime import date
 from typing import Any
@@ -35,14 +35,14 @@ ARCHIVE_HOURLY_FIELDS = [
 ]
 
 
-async def fetch_live_weather() -> dict[str, Any]:
-    """Fetch current Lagos atmospheric readings plus today's forecast summary."""
+async def fetch_live_weather(lat: float | None = None, lon: float | None = None) -> dict[str, Any]:
+    """Fetch current atmospheric readings plus today's forecast summary for the given coordinates."""
     params = {
-        "latitude": settings.lat,
-        "longitude": settings.lon,
+        "latitude": lat if lat is not None else settings.lagos_lat,
+        "longitude": lon if lon is not None else settings.lagos_lon,
         "current": ",".join(CURRENT_FIELDS),
         "daily": ",".join(DAILY_FIELDS),
-        "timezone": "Africa/Lagos",
+        "timezone": "auto",
         "forecast_days": 2,
     }
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -51,15 +51,17 @@ async def fetch_live_weather() -> dict[str, Any]:
         return response.json()
 
 
-async def fetch_historical_weather(start_date: date, end_date: date) -> dict[str, Any]:
-    """Fetch hourly historical atmospheric data for Lagos, used for model training."""
+async def fetch_historical_weather(
+    start_date: date, end_date: date, lat: float | None = None, lon: float | None = None
+) -> dict[str, Any]:
+    """Fetch hourly historical atmospheric data for the given coordinates."""
     params = {
-        "latitude": settings.lat,
-        "longitude": settings.lon,
+        "latitude": lat if lat is not None else settings.lagos_lat,
+        "longitude": lon if lon is not None else settings.lagos_lon,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "hourly": ",".join(ARCHIVE_HOURLY_FIELDS),
-        "timezone": "Africa/Lagos",
+        "timezone": "auto",
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(settings.open_meteo_archive_url, params=params)

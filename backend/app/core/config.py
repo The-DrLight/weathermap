@@ -4,8 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", protected_namespaces=())
 
-    lat: float = 6.5244
-    lon: float = 3.3792
+    lagos_lat: float = 6.5244
+    lagos_lon: float = 3.3792
 
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings
 from app.ml.predictor import ModelNotTrainedError, rain_predictor
@@ -45,9 +45,9 @@ def _extract_current_reading(live_data: dict) -> LiveReading:
     )
 
 
-async def _fetch_noon_reading(day: date) -> dict | None:
+async def _fetch_noon_reading(day: date, lat: float | None = None, lon: float | None = None) -> dict | None:
     """Fetch that day's noon (12:00 local) hourly reading from the Open-Meteo archive."""
-    archive_data = await open_meteo.fetch_historical_weather(day, day)
+    archive_data = await open_meteo.fetch_historical_weather(day, day, lat, lon)
     hourly = archive_data.get("hourly", {})
     times = hourly.get("time", [])
 
@@ -72,10 +72,14 @@ async def health():
 
 
 @router.get("/weather/live", response_model=LiveWeatherResponse)
-async def get_live_weather():
-    """Live Lagos atmospheric readings from Open-Meteo."""
-    live_data = await open_meteo.fetch_live_weather()
+async def get_live_weather(
+    lat: float | None = Query(None, description="Latitude override; defaults to Lagos"),
+    lon: float | None = Query(None, description="Longitude override; defaults to Lagos"),
+):
+    """Live atmospheric readings from Open-Meteo for the given coordinates (defaults to Lagos)."""
+    live_data = await open_meteo.fetch_live_weather(lat, lon)
     return LiveWeatherResponse(
+        location="Lagos, Nigeria" if lat is None and lon is None else "Current Location",
         latitude=live_data["latitude"],
         longitude=live_data["longitude"],
         current=_extract_current_reading(live_data),
@@ -83,12 +87,16 @@ async def get_live_weather():
 
 
 @router.post("/predict", response_model=PredictionResponse)
-async def predict_rain(payload: PredictionInput | None = None):
+async def predict_rain(
+    payload: PredictionInput | None = None,
+    lat: float | None = Query(None, description="Latitude override; defaults to Lagos"),
+    lon: float | None = Query(None, description="Longitude override; defaults to Lagos"),
+):
     """Predict rain from a passed-in reading, or from a live Open-Meteo fetch if no body is sent."""
     if payload is not None:
         reading_dict = payload.model_dump()
     else:
-        live_data = await open_meteo.fetch_live_weather()
+        live_data = await open_meteo.fetch_live_weather(lat, lon)
         reading_dict = _extract_current_reading(live_data).model_dump()
 
     try:
@@ -119,27 +127,31 @@ async def validate_prediction():
 
 
 @router.get("/nasa/compare")
-async def compare_with_nasa():
+async def compare_with_nasa(
+    lat: float | None = Query(None, description="Latitude override; defaults to Lagos"),
+    lon: float | None = Query(None, description="Longitude override; defaults to Lagos"),
+):
     """
     Compare our model's predictions against NASA POWER recorded precipitation for the
-    last 7 days. For each day, we predict from that day's noon Open-Meteo archive
-    reading and check it against NASA's recorded daily precipitation total.
+    last 7 days, at the given coordinates (defaults to Lagos). For each day, we predict
+    from that day's noon Open-Meteo archive reading and check it against NASA's recorded
+    daily precipitation total.
     """
     end = date.today() - timedelta(days=NASA_COMPARE_LAG_DAYS)
     start = end - timedelta(days=NASA_COMPARE_WINDOW_DAYS - 1)
 
     try:
-        power_data = await nasa_power.fetch_daily_power_data(start, end)
+        power_data = await nasa_power.fetch_daily_power_data(start, end, lat, lon)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"NASA POWER request failed: {exc}") from exc
 
     precip_by_date = power_data.get("properties", {}).get("parameter", {}).get("PRECTOTCORR", {})
     candidate_days = [start + timedelta(days=offset) for offset in range(NASA_COMPARE_WINDOW_DAYS)]
 
-    # Fetch each day's noon Open-Meteo reading concurrently instead of one-by-one — this
+    # Fetch each day's noon Open-Meteo reading concurrently instead of one-by-one, this
     # is the difference between a ~10s and a ~70s response for a 7-day window.
     noon_readings = await asyncio.gather(
-        *(_fetch_noon_reading(day) for day in candidate_days), return_exceptions=True
+        *(_fetch_noon_reading(day, lat, lon) for day in candidate_days), return_exceptions=True
     )
 
     days = []
@@ -170,7 +182,7 @@ async def compare_with_nasa():
     accuracy = round(sum(d["correct"] for d in days) / len(days), 4) if days else None
 
     return {
-        "location": "Lagos, Nigeria",
+        "location": "Lagos, Nigeria" if lat is None and lon is None else "Current Location",
         "rain_threshold_mm": RAIN_THRESHOLD_MM,
         "days": days,
         "accuracy": accuracy,

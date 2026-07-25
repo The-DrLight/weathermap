@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { getNasaComparison } from "../services/api";
 
-export default function NasaComparisonPanel() {
+export default function NasaComparisonPanel({ coords }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!coords) return;
+
     let cancelled = false;
 
-    getNasaComparison()
+    getNasaComparison(coords)
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -23,7 +25,7 @@ export default function NasaComparisonPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [coords]);
 
   return (
     <section className="rounded-2xl border border-navy-700 bg-navy-900/60 p-4 sm:p-6">

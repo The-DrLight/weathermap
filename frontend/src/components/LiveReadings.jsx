@@ -1,11 +1,11 @@
 const SENSOR_CARDS = [
-  { key: "temperature_2m", label: "Temperature", sensor: "RTD PT100 equivalent", unit: "°C", decimals: 1 },
-  { key: "relative_humidity_2m", label: "Humidity", sensor: "Capacitive HIH-4000 equivalent", unit: "%", decimals: 0 },
-  { key: "surface_pressure", label: "Pressure", sensor: "BMP280 Barometric equivalent", unit: "hPa", decimals: 1 },
-  { key: "wind_speed_10m", label: "Wind Speed", sensor: "Cup Anemometer equivalent", unit: "km/h", decimals: 1 },
-  { key: "wind_direction_10m", label: "Wind Direction", sensor: "Wind Vane equivalent", unit: "°", decimals: 0 },
-  { key: "dew_point_2m", label: "Dew Point", sensor: "Computed — Magnus formula", unit: "°C", decimals: 1 },
-  { key: "cloud_cover", label: "Cloud Cover", sensor: "Ceilometer equivalent", unit: "%", decimals: 0 },
+  { key: "temperature_2m", label: "Temperature", descriptor: "Temperature Sensor (RTD PT100)", unit: "°C", decimals: 1 },
+  { key: "relative_humidity_2m", label: "Relative Humidity", descriptor: "Humidity Sensor (Capacitive HIH-4000)", unit: "%", decimals: 0 },
+  { key: "surface_pressure", label: "Atmospheric Pressure", descriptor: "Barometric Pressure Sensor (BMP280)", unit: "hPa", decimals: 1 },
+  { key: "wind_speed_10m", label: "Wind Speed", descriptor: "Wind Speed Transducer (Cup Anemometer)", unit: "km/h", decimals: 1 },
+  { key: "wind_direction_10m", label: "Wind Direction", descriptor: "Wind Direction Sensor (Potentiometric Wind Vane)", unit: "°", decimals: 0 },
+  { key: "dew_point_2m", label: "Dew Point Temperature", descriptor: "Magnus Formula Derivation", unit: "°C", decimals: 1 },
+  { key: "cloud_cover", label: "Cloud Cover", descriptor: "Cloud Cover Sensor (Ceilometer)", unit: "%", decimals: 0 },
 ];
 
 export default function LiveReadings({ current, loading }) {
@@ -23,11 +23,10 @@ export default function LiveReadings({ current, loading }) {
 
       {current && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {SENSOR_CARDS.map(({ key, label, sensor, unit, decimals }) => (
+          {SENSOR_CARDS.map(({ key, label, descriptor, unit, decimals }) => (
             <div key={key} className="rounded-xl border border-navy-700 bg-navy-950/60 p-3">
-              <p className="text-xs font-medium text-slate-400">
-                {label} <span className="text-slate-500">({sensor})</span>
-              </p>
+              <p className="text-xs font-medium text-slate-400">{label}</p>
+              <p className="text-[10px] text-slate-500">{descriptor}</p>
               <p className="mt-1 text-xl font-semibold text-slate-100">
                 {current[key]?.toFixed(decimals)}
                 <span className="ml-1 text-sm font-normal text-slate-400">{unit}</span>

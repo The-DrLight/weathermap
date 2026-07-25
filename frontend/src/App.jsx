@@ -20,7 +20,16 @@ const DEFAULT_MANUAL_VALUES = {
 };
 
 export default function App() {
-  const { weather, prediction, validation, loading, error } = useWeatherData();
+  const {
+    weather,
+    prediction,
+    validation,
+    loading,
+    error,
+    coords,
+    locationStatus,
+    locationNotice,
+  } = useWeatherData();
   const [mode, setMode] = useState("live");
   const [manualPrediction, setManualPrediction] = useState(null);
   const [manualSubmitting, setManualSubmitting] = useState(false);
@@ -56,7 +65,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-navy-950 text-slate-100">
-      <SystemStatusBar weather={weather} error={error} />
+      <SystemStatusBar weather={weather} error={error} coords={coords} locationStatus={locationStatus} />
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
@@ -64,10 +73,22 @@ export default function App() {
             <h1 className="text-2xl font-bold text-slate-50 sm:text-3xl">
               Lagos Smart Weather Prediction System
             </h1>
-            <p className="mt-1 text-sm text-slate-400">EEG 323 — Instrumentation and Measurement II</p>
+            <p className="mt-1 text-sm text-slate-400">EEG 323: Instrumentation and Measurement II</p>
           </div>
           <ModeToggle mode={mode} onChange={setMode} />
         </header>
+
+        {locationStatus === "requesting" && (
+          <div className="rounded-xl border border-navy-700 bg-navy-900/60 px-4 py-3 text-sm text-slate-300">
+            Requesting location access...
+          </div>
+        )}
+
+        {locationNotice && (
+          <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">
+            {locationNotice}
+          </div>
+        )}
 
         <LiveReadings current={weather?.current} loading={loading} />
 
@@ -92,7 +113,7 @@ export default function App() {
           <ValidationPanel validation={validation} loading={loading} />
         </div>
 
-        <NasaComparisonPanel />
+        <NasaComparisonPanel coords={coords} />
       </main>
     </div>
   );

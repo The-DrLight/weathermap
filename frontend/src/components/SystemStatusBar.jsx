@@ -1,4 +1,9 @@
-export default function SystemStatusBar({ weather, error }) {
+function formatCoordinate(value, positiveLabel, negativeLabel) {
+  const hemisphere = value >= 0 ? positiveLabel : negativeLabel;
+  return `${Math.abs(value).toFixed(4)}°${hemisphere}`;
+}
+
+export default function SystemStatusBar({ weather, error, coords, locationStatus }) {
   const isHealthy = !error;
   const lastUpdated = weather?.current?.time
     ? new Date(weather.current.time).toLocaleString("en-NG", {
@@ -7,13 +12,18 @@ export default function SystemStatusBar({ weather, error }) {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "—";
+    : "Not available";
+
+  const placeLabel = locationStatus === "denied" ? "Lagos, Nigeria (default)" : "Current location";
+  const coordLabel = coords
+    ? `${formatCoordinate(coords.lat, "N", "S")}, ${formatCoordinate(coords.lon, "E", "W")}`
+    : "Resolving location";
 
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-navy-700 bg-navy-950/95 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="font-semibold text-teal-400">Lagos, Nigeria</span>
-        <span className="text-slate-500">6.5244°N, 3.3792°E</span>
+        <span className="font-semibold text-teal-400">{placeLabel}</span>
+        <span className="text-slate-500">{coordLabel}</span>
       </div>
 
       <div className="flex items-center gap-4 text-xs text-slate-400 sm:text-sm">
