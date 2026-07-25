@@ -1,4 +1,4 @@
-export default function PredictionCard({ prediction, loading, error }) {
+export default function PredictionCard({ prediction, loading, error, source, emptyMessage }) {
   if (!prediction && loading) {
     return (
       <section className="rounded-2xl border border-navy-700 bg-navy-900/60 p-6">
@@ -18,7 +18,14 @@ export default function PredictionCard({ prediction, loading, error }) {
     );
   }
 
-  if (!prediction) return null;
+  if (!prediction) {
+    return (
+      <section className="rounded-2xl border border-navy-700 bg-navy-900/60 p-6">
+        <h2 className="mb-2 text-lg font-semibold text-slate-100">24-Hour Rain Prediction</h2>
+        <p className="text-sm text-slate-400">{emptyMessage || "No prediction yet."}</p>
+      </section>
+    );
+  }
 
   const isRain = prediction.will_rain;
   const confidencePct = Math.round(prediction.confidence * 100);
@@ -26,7 +33,14 @@ export default function PredictionCard({ prediction, loading, error }) {
 
   return (
     <section className="rounded-2xl border border-navy-700 bg-navy-900/60 p-4 sm:p-6">
-      <h2 className="mb-4 text-lg font-semibold text-slate-100">24-Hour Rain Prediction</h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-slate-100">24-Hour Rain Prediction</h2>
+        {source && (
+          <span className="rounded-full bg-navy-800 px-2.5 py-1 text-xs font-medium text-slate-300">
+            Source: <span className="text-teal-400">{source}</span>
+          </span>
+        )}
+      </div>
 
       <div
         className={`flex flex-col items-center justify-center rounded-xl border p-6 text-center ${

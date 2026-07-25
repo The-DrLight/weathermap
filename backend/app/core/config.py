@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
     nasa_power_base_url: str = "https://power.larc.nasa.gov/api/temporal/hourly/point"
+    nasa_power_daily_url: str = "https://power.larc.nasa.gov/api/temporal/daily/point"
 
     frontend_origin: str = "http://localhost:5173"
 
