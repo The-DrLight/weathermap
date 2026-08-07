@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     lagos_lat: float = 6.5244
     lagos_lon: float = 3.3792
 
-    open_meteo_base_url: str = "https://customer-api.open-meteo.com/v1/forecast"
+    open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
     nasa_power_base_url: str = "https://power.larc.nasa.gov/api/temporal/hourly/point"
     nasa_power_daily_url: str = "https://power.larc.nasa.gov/api/temporal/daily/point"
