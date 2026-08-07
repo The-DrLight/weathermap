@@ -77,7 +77,39 @@ async def get_live_weather(
     lon: float | None = Query(None, description="Longitude override; defaults to Lagos"),
 ):
     """Live atmospheric readings from Open-Meteo for the given coordinates (defaults to Lagos)."""
-    live_data = await open_meteo.fetch_live_weather(lat, lon)
+    fresh_cached = open_meteo.get_cached_live_weather(lat, lon)
+    if fresh_cached is not None and open_meteo.is_cache_fresh(fresh_cached[1]):
+        cached_data, cached_at = fresh_cached
+        return LiveWeatherResponse(
+            location="Lagos, Nigeria" if lat is None and lon is None else "Current Location",
+            latitude=cached_data["latitude"],
+            longitude=cached_data["longitude"],
+            current=_extract_current_reading(cached_data),
+            cached=True,
+            cached_at=cached_at.isoformat(),
+        )
+
+    try:
+        live_data = await open_meteo.fetch_live_weather(lat, lon)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 429:
+            raise
+        cached = open_meteo.get_cached_live_weather(lat, lon)
+        if cached is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Open-Meteo rate limit reached. Please retry in 60 seconds.",
+            ) from exc
+        cached_data, cached_at = cached
+        return LiveWeatherResponse(
+            location="Lagos, Nigeria" if lat is None and lon is None else "Current Location",
+            latitude=cached_data["latitude"],
+            longitude=cached_data["longitude"],
+            current=_extract_current_reading(cached_data),
+            cached=True,
+            cached_at=cached_at.isoformat(),
+        )
+
     return LiveWeatherResponse(
         location="Lagos, Nigeria" if lat is None and lon is None else "Current Location",
         latitude=live_data["latitude"],

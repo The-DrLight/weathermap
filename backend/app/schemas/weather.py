@@ -18,6 +18,8 @@ class LiveWeatherResponse(BaseModel):
     latitude: float
     longitude: float
     current: LiveReading
+    cached: bool = False
+    cached_at: str | None = None
 
 
 class PredictionInput(BaseModel):

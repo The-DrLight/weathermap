@@ -1,11 +1,35 @@
 """Fetches live and historical atmospheric data from Open-Meteo, defaulting to Lagos."""
 
-from datetime import date
+import asyncio
+from datetime import date, datetime, timezone
 from typing import Any
 
 import httpx
 
 from app.core.config import settings
+
+LIVE_RETRY_ATTEMPTS = 3
+LIVE_RETRY_DELAY_SECONDS = 5
+LIVE_CACHE_TTL_SECONDS = 60
+
+# Cache keyed by (lat, lon) rounded to 4dp, mapping to (response, fetched_at).
+_live_cache: dict[tuple[float, float], tuple[dict[str, Any], datetime]] = {}
+
+
+def _cache_key(lat: float | None, lon: float | None) -> tuple[float, float]:
+    return (
+        round(lat if lat is not None else settings.lagos_lat, 4),
+        round(lon if lon is not None else settings.lagos_lon, 4),
+    )
+
+
+def get_cached_live_weather(lat: float | None, lon: float | None) -> tuple[dict[str, Any], datetime] | None:
+    """Return the last successful live weather response for these coordinates, if any."""
+    return _live_cache.get(_cache_key(lat, lon))
+
+
+def is_cache_fresh(fetched_at: datetime) -> bool:
+    return (datetime.now(timezone.utc) - fetched_at).total_seconds() < LIVE_CACHE_TTL_SECONDS
 
 CURRENT_FIELDS = [
     "temperature_2m",
@@ -46,9 +70,15 @@ async def fetch_live_weather(lat: float | None = None, lon: float | None = None)
         "forecast_days": 2,
     }
     async with httpx.AsyncClient(timeout=15.0) as client:
-        response = await client.get(settings.open_meteo_base_url, params=params)
-        response.raise_for_status()
-        return response.json()
+        for attempt in range(1, LIVE_RETRY_ATTEMPTS + 1):
+            response = await client.get(settings.open_meteo_base_url, params=params)
+            if response.status_code == 429 and attempt < LIVE_RETRY_ATTEMPTS:
+                await asyncio.sleep(LIVE_RETRY_DELAY_SECONDS)
+                continue
+            response.raise_for_status()
+            data = response.json()
+            _live_cache[_cache_key(lat, lon)] = (data, datetime.now(timezone.utc))
+            return data
 
 
 async def fetch_historical_weather(
