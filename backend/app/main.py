@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
             "background — /predict and /weather/live return 503 until it's ready.",
             model_path,
         )
-        asyncio.create_task(_train_in_background())
+        app.state.training_task = asyncio.create_task(_train_in_background())
     yield
 
 

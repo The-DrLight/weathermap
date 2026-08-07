@@ -35,13 +35,21 @@ export default function App() {
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualError, setManualError] = useState(null);
 
+  const handleModeChange = (newMode) => {
+    console.log("[App] mode changed", { from: mode, to: newMode });
+    setMode(newMode);
+  };
+
   const handleManualSubmit = async (values) => {
+    console.log("[App] manual prediction submitted", values);
     setManualSubmitting(true);
     setManualError(null);
     try {
       const result = await postPrediction({ ...values, time: nowInLagos() });
       setManualPrediction(result);
+      console.log("[App] manual prediction succeeded", result);
     } catch (err) {
+      console.error("[App] manual prediction failed", err);
       setManualError(err);
     } finally {
       setManualSubmitting(false);
@@ -75,7 +83,7 @@ export default function App() {
             </h1>
             <p className="mt-1 text-sm text-slate-400">EEG 323: Instrumentation and Measurement II</p>
           </div>
-          <ModeToggle mode={mode} onChange={setMode} />
+          <ModeToggle mode={mode} onChange={handleModeChange} />
         </header>
 
         {locationStatus === "requesting" && (
