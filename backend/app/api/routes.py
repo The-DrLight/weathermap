@@ -125,6 +125,7 @@ async def get_live_weather(
         latitude=live_data["latitude"],
         longitude=live_data["longitude"],
         current=_extract_current_reading(live_data),
+        source=live_data.get("source", "live"),
     )
 
 

@@ -20,6 +20,7 @@ class LiveWeatherResponse(BaseModel):
     current: LiveReading
     cached: bool = False
     cached_at: str | None = None
+    source: str = "live"
 
 
 class PredictionInput(BaseModel):

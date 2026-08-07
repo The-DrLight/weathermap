@@ -1,17 +1,16 @@
 """Fetches live and historical atmospheric data from Open-Meteo, defaulting to Lagos."""
 
 import asyncio
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
 
 from app.core.config import settings
 
-LIVE_RETRY_ATTEMPTS = 3
-LIVE_RETRY_DELAY_SECONDS = 5
+LIVE_RETRY_ATTEMPTS = 5
+LIVE_RETRY_DELAY_SECONDS = 15
 LIVE_CACHE_TTL_SECONDS = 60
-LIVE_FINAL_RETRY_DELAY_SECONDS = 10
 
 # Cache keyed by (lat, lon) rounded to 4dp, mapping to (response, fetched_at).
 _live_cache: dict[tuple[float, float], tuple[dict[str, Any], datetime]] = {}
@@ -82,12 +81,39 @@ async def fetch_live_weather(lat: float | None = None, lon: float | None = None)
                 cached = get_cached_live_weather(lat, lon)
                 if cached is not None:
                     return cached[0]
-                await asyncio.sleep(LIVE_FINAL_RETRY_DELAY_SECONDS)
-                response = await client.get(settings.open_meteo_base_url, params=params)
+                fallback = await _fetch_archive_fallback(lat, lon)
+                if fallback is not None:
+                    return fallback
+                response.raise_for_status()
             response.raise_for_status()
             data = response.json()
             _live_cache[_cache_key(lat, lon)] = (data, datetime.now(timezone.utc))
             return data
+
+
+async def _fetch_archive_fallback(lat: float | None, lon: float | None) -> dict[str, Any] | None:
+    """Last resort when the forecast API is rate limited: yesterday's noon archive reading."""
+    yesterday = date.today() - timedelta(days=1)
+    try:
+        archive_data = await fetch_historical_weather(yesterday, yesterday, lat, lon)
+    except httpx.HTTPError:
+        return None
+
+    hourly = archive_data.get("hourly", {})
+    times = hourly.get("time", [])
+    noon_index = next((i for i, t in enumerate(times) if t.endswith("T12:00")), None)
+    if noon_index is None:
+        return None
+
+    current = {field: hourly[field][noon_index] for field in ARCHIVE_HOURLY_FIELDS}
+    current["time"] = times[noon_index]
+
+    return {
+        "latitude": lat if lat is not None else settings.lagos_lat,
+        "longitude": lon if lon is not None else settings.lagos_lon,
+        "current": current,
+        "source": "archive_fallback",
+    }
 
 
 async def fetch_historical_weather(

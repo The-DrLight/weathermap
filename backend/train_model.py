@@ -225,7 +225,7 @@ def main() -> None:
             random_state=RANDOM_STATE, class_weight="balanced"
         ),
         "Logistic Regression": LogisticRegression(
-            max_iter=1000, class_weight="balanced"
+            max_iter=5000, class_weight="balanced"
         ),
     }
 
