@@ -15,11 +15,11 @@ logger = logging.getLogger("uvicorn.error")
 async def lifespan(app: FastAPI):
     model_path = Path(settings.model_path)
     if not model_path.exists():
-        logger.warning("Model not found — training now. This will take ~2 minutes.")
-        from train_model import main as train_model_main
-
-        train_model_main()
-        logger.info("Model training complete.")
+        logger.warning(
+            "Model not found at '%s'. Server starting without a trained model — "
+            "POST /admin/train to train it.",
+            model_path,
+        )
     yield
 
 

@@ -41,6 +41,11 @@ class RainPredictor:
     def is_ready(self) -> bool:
         return self._model_path.exists() and self._feature_columns_path.exists()
 
+    def reload(self) -> None:
+        """Force the model and feature columns to be re-read from disk on next use."""
+        self._model = None
+        self._feature_columns = None
+
     def predict(self, reading: dict) -> dict:
         self._ensure_loaded()
 

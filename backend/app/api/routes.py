@@ -71,6 +71,16 @@ async def health():
     return HealthResponse(status="healthy", model_loaded=rain_predictor.is_ready())
 
 
+@router.post("/admin/train")
+async def train_model():
+    """Train (or retrain) the rain prediction model on demand. Can take a few minutes."""
+    from train_model import main as train_model_main
+
+    await asyncio.to_thread(train_model_main)
+    rain_predictor.reload()
+    return {"status": "trained", "model_loaded": rain_predictor.is_ready()}
+
+
 @router.get("/weather/live", response_model=LiveWeatherResponse)
 async def get_live_weather(
     lat: float | None = Query(None, description="Latitude override; defaults to Lagos"),

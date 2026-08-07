@@ -19,6 +19,7 @@ Run with: python train_model.py
 from __future__ import annotations
 
 import json
+import time
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -55,6 +56,9 @@ HOURLY_FIELDS = [
 YEARS_OF_HISTORY = 4
 ARCHIVE_LAG_DAYS = 7  # ERA5-based archive data isn't available for the most recent days
 CHUNK_DAYS = 364  # keep individual requests bounded
+CHUNK_DELAY_SECONDS = 2  # pause between chunk fetches to avoid Open-Meteo rate limiting
+CHUNK_MAX_RETRIES = 3
+CHUNK_RETRY_WAIT_SECONDS = 30
 RAIN_THRESHOLD_MM = 0.1
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
@@ -88,9 +92,18 @@ def fetch_chunk(client: httpx.Client, start: date, end: date) -> pd.DataFrame:
         "hourly": ",".join(HOURLY_FIELDS),
         "timezone": "Africa/Lagos",
     }
-    response = client.get(ARCHIVE_URL, params=params)
-    response.raise_for_status()
-    return pd.DataFrame(response.json()["hourly"])
+    for attempt in range(1, CHUNK_MAX_RETRIES + 1):
+        response = client.get(ARCHIVE_URL, params=params)
+        if response.status_code == 429 and attempt < CHUNK_MAX_RETRIES:
+            print(
+                f"  429 rate limited fetching {start} -> {end}, "
+                f"waiting {CHUNK_RETRY_WAIT_SECONDS}s (attempt {attempt}/{CHUNK_MAX_RETRIES})"
+            )
+            time.sleep(CHUNK_RETRY_WAIT_SECONDS)
+            continue
+        response.raise_for_status()
+        return pd.DataFrame(response.json()["hourly"])
+    raise RuntimeError(f"Failed to fetch chunk {start} -> {end} after {CHUNK_MAX_RETRIES} attempts")
 
 
 def fetch_historical_data() -> pd.DataFrame:
@@ -105,6 +118,8 @@ def fetch_historical_data() -> pd.DataFrame:
             print(f"  fetching {chunk_start} -> {chunk_end}")
             frames.append(fetch_chunk(client, chunk_start, chunk_end))
             chunk_start = chunk_end + timedelta(days=1)
+            if chunk_start < end:
+                time.sleep(CHUNK_DELAY_SECONDS)
 
     df = pd.concat(frames, ignore_index=True)
     df["time"] = pd.to_datetime(df["time"])
