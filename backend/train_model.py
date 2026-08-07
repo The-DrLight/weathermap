@@ -56,7 +56,8 @@ HOURLY_FIELDS = [
 YEARS_OF_HISTORY = 4
 ARCHIVE_LAG_DAYS = 7  # ERA5-based archive data isn't available for the most recent days
 CHUNK_DAYS = 364  # keep individual requests bounded
-CHUNK_DELAY_SECONDS = 2  # pause between chunk fetches to avoid Open-Meteo rate limiting
+CHUNK_DELAY_SECONDS = 8  # pause between chunk fetches to avoid Open-Meteo rate limiting
+STARTUP_DELAY_SECONDS = 30  # let the server and any initial frontend calls settle first
 CHUNK_MAX_RETRIES = 3
 CHUNK_RETRY_WAIT_SECONDS = 30
 RAIN_THRESHOLD_MM = 0.1
@@ -109,6 +110,9 @@ def fetch_chunk(client: httpx.Client, start: date, end: date) -> pd.DataFrame:
 def fetch_historical_data() -> pd.DataFrame:
     end = date.today() - timedelta(days=ARCHIVE_LAG_DAYS)
     start_overall = end - timedelta(days=365 * YEARS_OF_HISTORY)
+
+    print(f"  waiting {STARTUP_DELAY_SECONDS}s before first fetch...")
+    time.sleep(STARTUP_DELAY_SECONDS)
 
     frames = []
     with httpx.Client(timeout=60.0) as client:
@@ -216,7 +220,7 @@ def main() -> None:
 
     models = {
         "Random Forest": RandomForestClassifier(
-            n_estimators=200,
+            n_estimators=100,
             random_state=RANDOM_STATE,
             n_jobs=-1,
             class_weight="balanced",

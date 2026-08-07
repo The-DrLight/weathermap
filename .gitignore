@@ -5,8 +5,7 @@ __pycache__/
 venv/
 .env
 
-# Model artifacts & downloaded data
-*.joblib
+# Downloaded data
 data/
 
 # Node

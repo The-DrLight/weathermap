@@ -1,9 +1,9 @@
 {
-  "trained_at": "2026-07-25T07:54:13.402202+00:00",
+  "trained_at": "2026-08-07T17:17:24.682759+00:00",
   "years_of_history": 4,
   "rows_fetched": 35040,
   "rows_used": 35040,
-  "rain_rate": 0.271,
+  "rain_rate": 0.2718,
   "rain_threshold_mm": 0.1,
   "train_rows": 28032,
   "test_rows": 7008,
@@ -25,41 +25,41 @@
   "results": [
     {
       "model": "Random Forest",
-      "accuracy": 0.8288,
-      "precision": 0.7463,
-      "recall": 0.5577,
-      "f1_score": 0.6383,
+      "accuracy": 0.8305,
+      "precision": 0.7552,
+      "recall": 0.557,
+      "f1_score": 0.6411,
       "confusion_matrix": {
-        "true_negative": 4749,
-        "false_positive": 360,
-        "false_negative": 840,
-        "true_positive": 1059
+        "true_negative": 4759,
+        "false_positive": 344,
+        "false_negative": 844,
+        "true_positive": 1061
       }
     },
     {
       "model": "Decision Tree",
-      "accuracy": 0.7566,
-      "precision": 0.5526,
-      "recall": 0.5334,
-      "f1_score": 0.5429,
+      "accuracy": 0.7671,
+      "precision": 0.5732,
+      "recall": 0.5612,
+      "f1_score": 0.5671,
       "confusion_matrix": {
-        "true_negative": 4289,
-        "false_positive": 820,
-        "false_negative": 886,
-        "true_positive": 1013
+        "true_negative": 4307,
+        "false_positive": 796,
+        "false_negative": 836,
+        "true_positive": 1069
       }
     },
     {
       "model": "Logistic Regression",
-      "accuracy": 0.7382,
-      "precision": 0.5115,
-      "recall": 0.7514,
-      "f1_score": 0.6087,
+      "accuracy": 0.7364,
+      "precision": 0.5106,
+      "recall": 0.7302,
+      "f1_score": 0.601,
       "confusion_matrix": {
-        "true_negative": 3746,
-        "false_positive": 1363,
-        "false_negative": 472,
-        "true_positive": 1427
+        "true_negative": 3770,
+        "false_positive": 1333,
+        "false_negative": 514,
+        "true_positive": 1391
       }
     }
   ]
