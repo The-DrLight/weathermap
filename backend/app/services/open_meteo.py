@@ -11,6 +11,7 @@ from app.core.config import settings
 LIVE_RETRY_ATTEMPTS = 3
 LIVE_RETRY_DELAY_SECONDS = 5
 LIVE_CACHE_TTL_SECONDS = 60
+LIVE_FINAL_RETRY_DELAY_SECONDS = 10
 
 # Cache keyed by (lat, lon) rounded to 4dp, mapping to (response, fetched_at).
 _live_cache: dict[tuple[float, float], tuple[dict[str, Any], datetime]] = {}
@@ -75,6 +76,14 @@ async def fetch_live_weather(lat: float | None = None, lon: float | None = None)
             if response.status_code == 429 and attempt < LIVE_RETRY_ATTEMPTS:
                 await asyncio.sleep(LIVE_RETRY_DELAY_SECONDS)
                 continue
+            if response.status_code == 429:
+                # Exhausted retries. Fall back to whatever we last cached for these
+                # coordinates, however stale, before giving up entirely.
+                cached = get_cached_live_weather(lat, lon)
+                if cached is not None:
+                    return cached[0]
+                await asyncio.sleep(LIVE_FINAL_RETRY_DELAY_SECONDS)
+                response = await client.get(settings.open_meteo_base_url, params=params)
             response.raise_for_status()
             data = response.json()
             _live_cache[_cache_key(lat, lon)] = (data, datetime.now(timezone.utc))
