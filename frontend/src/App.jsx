@@ -41,13 +41,13 @@ export default function App() {
   };
 
   const handleManualSubmit = async (values) => {
-    console.log("[App] manual prediction submitted", values);
+    console.log("[App] Manual prediction submitted");
     setManualSubmitting(true);
     setManualError(null);
     try {
       const result = await postPrediction({ ...values, time: nowInLagos() });
       setManualPrediction(result);
-      console.log("[App] manual prediction succeeded", result);
+      console.log("[App] Manual prediction complete");
     } catch (err) {
       console.error("[App] manual prediction failed", err);
       setManualError(err);
