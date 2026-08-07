@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.services.owm import fetch_owm_current
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -65,6 +66,14 @@ ARCHIVE_HOURLY_FIELDS = [
 async def fetch_live_weather(lat: float | None = None, lon: float | None = None) -> dict[str, Any]:
     """Fetch current atmospheric readings plus today's forecast summary for the given coordinates."""
     logger.info("open_meteo.fetch_live_weather: starting (lat=%s, lon=%s)", lat, lon)
+
+    owm_data = await fetch_owm_current(lat, lon)
+    if owm_data is not None:
+        logger.info("open_meteo.fetch_live_weather: serving OWM reading")
+        _live_cache[_cache_key(lat, lon)] = (owm_data, datetime.now(timezone.utc))
+        return owm_data
+    logger.warning("open_meteo.fetch_live_weather: OWM unavailable, falling back to Open-Meteo")
+
     params = {
         "latitude": lat if lat is not None else settings.lagos_lat,
         "longitude": lon if lon is not None else settings.lagos_lon,

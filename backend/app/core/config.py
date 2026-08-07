@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     nasa_power_base_url: str = "https://power.larc.nasa.gov/api/temporal/hourly/point"
     nasa_power_daily_url: str = "https://power.larc.nasa.gov/api/temporal/daily/point"
 
+    owm_api_key: str | None = None
+
     frontend_origin: str = "http://localhost:5173"
 
     model_path: str = "models/rain_model.joblib"
