@@ -69,7 +69,7 @@ async def _fetch_noon_reading(day: date, lat: float | None = None, lon: float | 
     }
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health():
     logger.info("GET /health")
     return HealthResponse(status="healthy", model_loaded=rain_predictor.is_ready())
