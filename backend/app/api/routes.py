@@ -173,7 +173,7 @@ async def predict_rain(
 
 @router.get("/validate")
 async def validate_prediction():
-    """Return the training report comparing Random Forest, Decision Tree, and Logistic Regression."""
+    """Return the training report comparing the candidate models on a chronological test set."""
     logger.info("GET /validate")
     report_path = MODELS_DIR / "training_report.json"
     if not report_path.exists():

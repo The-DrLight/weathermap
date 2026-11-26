@@ -1,4 +1,4 @@
-"""Loads the trained Random Forest model and produces rain predictions."""
+"""Loads the trained rain model (best of the candidates in train_model.py) and produces rain predictions."""
 
 import json
 import logging

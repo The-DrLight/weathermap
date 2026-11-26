@@ -1,11 +1,13 @@
 {
-  "trained_at": "2026-08-07T17:17:24.682759+00:00",
+  "trained_at": "2026-11-24T09:52:26.914750+00:00",
   "years_of_history": 4,
   "rows_fetched": 35040,
   "rows_used": 35040,
   "rain_rate": 0.2718,
   "rain_threshold_mm": 0.1,
-  "train_rows": 28032,
+  "split": "chronological (64% train / 16% validation / 20% test); metrics are on the test set from a train-only fit, deployed model is refit on all data",
+  "train_rows": 22425,
+  "val_rows": 5607,
   "test_rows": 7008,
   "feature_columns": [
     "temperature_2m",
@@ -21,45 +23,62 @@
     "month_cos"
   ],
   "target_column": "rained",
-  "best_model": "Random Forest",
+  "best_model": "Gradient Boosting",
   "results": [
     {
       "model": "Random Forest",
-      "accuracy": 0.8305,
-      "precision": 0.7552,
-      "recall": 0.557,
-      "f1_score": 0.6411,
+      "accuracy": 0.7875,
+      "precision": 0.6222,
+      "recall": 0.5918,
+      "f1_score": 0.6066,
+      "roc_auc": 0.8398,
       "confusion_matrix": {
-        "true_negative": 4759,
-        "false_positive": 344,
-        "false_negative": 844,
-        "true_positive": 1061
+        "true_negative": 4371,
+        "false_positive": 697,
+        "false_negative": 792,
+        "true_positive": 1148
+      }
+    },
+    {
+      "model": "Gradient Boosting",
+      "accuracy": 0.7738,
+      "precision": 0.5722,
+      "recall": 0.7253,
+      "f1_score": 0.6397,
+      "roc_auc": 0.8416,
+      "confusion_matrix": {
+        "true_negative": 4016,
+        "false_positive": 1052,
+        "false_negative": 533,
+        "true_positive": 1407
       }
     },
     {
       "model": "Decision Tree",
-      "accuracy": 0.7671,
-      "precision": 0.5732,
-      "recall": 0.5612,
-      "f1_score": 0.5671,
+      "accuracy": 0.7474,
+      "precision": 0.5512,
+      "recall": 0.4716,
+      "f1_score": 0.5083,
+      "roc_auc": 0.6623,
       "confusion_matrix": {
-        "true_negative": 4307,
-        "false_positive": 796,
-        "false_negative": 836,
-        "true_positive": 1069
+        "true_negative": 4323,
+        "false_positive": 745,
+        "false_negative": 1025,
+        "true_positive": 915
       }
     },
     {
       "model": "Logistic Regression",
-      "accuracy": 0.7364,
-      "precision": 0.5106,
-      "recall": 0.7302,
-      "f1_score": 0.601,
+      "accuracy": 0.7523,
+      "precision": 0.5456,
+      "recall": 0.6289,
+      "f1_score": 0.5843,
+      "roc_auc": 0.8093,
       "confusion_matrix": {
-        "true_negative": 3770,
-        "false_positive": 1333,
-        "false_negative": 514,
-        "true_positive": 1391
+        "true_negative": 4052,
+        "false_positive": 1016,
+        "false_negative": 720,
+        "true_positive": 1220
       }
     }
   ]

@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Lagos Smart Weather Prediction System",
-    description="Live Lagos atmospheric data + Random Forest rain prediction, validated against NASA POWER.",
+    description="Live Lagos atmospheric data + ML rain prediction, validated against NASA POWER.",
     version="0.1.0",
     lifespan=lifespan,
 )

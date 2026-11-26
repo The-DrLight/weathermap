@@ -1,24 +1,27 @@
 """
-Trains the Random Forest rain-prediction model on 4 years of hourly Lagos
-historical weather data from the Open-Meteo archive API.
+Trains the rain-prediction model on 4 years of hourly Lagos historical
+weather data from the Open-Meteo archive API.
 
 Pipeline:
   1. Fetch hourly historical data (temperature, humidity, pressure, wind,
      cloud cover, precipitation) for Lagos (6.5244N, 3.3792E).
   2. Engineer features: dew point (Magnus formula), wind U/V components,
      cyclical hour/month encoding, and the rain label.
-  3. Train Random Forest, Decision Tree, and Logistic Regression on an
-     80/20 stratified split and compare them on accuracy, precision,
-     recall, F1, and confusion matrix.
-  4. Persist the Random Forest model, its feature column order, and a
-     training report with all three models' metrics.
+  3. Split chronologically (oldest 64% train, next 16% validation, newest 20%
+     test) so the test set is genuinely "future" data. Train Random Forest,
+     Gradient Boosting, Decision Tree, and Logistic Regression and compare them
+     on accuracy, precision, recall, F1, ROC AUC, and confusion matrix.
+  4. Pick the model with the best validation F1, refit it on all data, and
+     persist it with its feature column order and a training report.
 
-Run with: python train_model.py
+Run with: python train_model.py            (fetch fresh data from Open-Meteo)
+          python train_model.py --use-cache (reuse data/lagos_historical_raw.csv)
 """
 
 from __future__ import annotations
 
 import json
+import sys
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -27,16 +30,16 @@ import httpx
 import numpy as np
 import pandas as pd
 from joblib import dump
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
     f1_score,
+    roc_auc_score,
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
 LAT = 6.5244
@@ -61,7 +64,8 @@ STARTUP_DELAY_SECONDS = 30  # let the server and any initial frontend calls sett
 CHUNK_MAX_RETRIES = 3
 CHUNK_RETRY_WAIT_SECONDS = 30
 RAIN_THRESHOLD_MM = 0.1
-TEST_SIZE = 0.2
+TEST_FRACTION = 0.2
+VAL_FRACTION = 0.16
 RANDOM_STATE = 42
 
 BACKEND_DIR = Path(__file__).parent
@@ -160,6 +164,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def evaluate(name: str, model, X_test, y_test) -> dict:
     y_pred = model.predict(X_test)
+    auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
     cm = confusion_matrix(y_test, y_pred, labels=[0, 1])
     return {
         "model": name,
@@ -167,6 +172,7 @@ def evaluate(name: str, model, X_test, y_test) -> dict:
         "precision": round(float(precision_score(y_test, y_pred, zero_division=0)), 4),
         "recall": round(float(recall_score(y_test, y_pred, zero_division=0)), 4),
         "f1_score": round(float(f1_score(y_test, y_pred, zero_division=0)), 4),
+        "roc_auc": round(float(auc), 4),
         "confusion_matrix": {
             "true_negative": int(cm[0, 0]),
             "false_positive": int(cm[0, 1]),
@@ -177,13 +183,13 @@ def evaluate(name: str, model, X_test, y_test) -> dict:
 
 
 def print_comparison_table(results: list[dict]) -> None:
-    header = f"{'Model':<22}{'Accuracy':>10}{'Precision':>11}{'Recall':>9}{'F1':>8}"
+    header = f"{'Model':<22}{'Accuracy':>10}{'Precision':>11}{'Recall':>9}{'F1':>8}{'AUC':>8}"
     print(header)
     print("-" * len(header))
     for r in results:
         print(
             f"{r['model']:<22}{r['accuracy']:>10.4f}{r['precision']:>11.4f}"
-            f"{r['recall']:>9.4f}{r['f1_score']:>8.4f}"
+            f"{r['recall']:>9.4f}{r['f1_score']:>8.4f}{r['roc_auc']:>8.4f}"
         )
 
 
@@ -200,10 +206,16 @@ def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     MODELS_DIR.mkdir(exist_ok=True)
 
-    print(f"Fetching {YEARS_OF_HISTORY} years of hourly Lagos historical data from Open-Meteo...")
-    raw = fetch_historical_data()
-    print(f"Fetched {len(raw)} hourly rows.")
-    raw.to_csv(DATA_DIR / "lagos_historical_raw.csv", index=False)
+    raw_path = DATA_DIR / "lagos_historical_raw.csv"
+    if "--use-cache" in sys.argv and raw_path.exists():
+        print(f"Using cached historical data from {raw_path}")
+        raw = pd.read_csv(raw_path, parse_dates=["time"])
+    else:
+        print(f"Fetching {YEARS_OF_HISTORY} years of hourly Lagos historical data from Open-Meteo...")
+        raw = fetch_historical_data()
+        raw.to_csv(raw_path, index=False)
+    print(f"Loaded {len(raw)} hourly rows.")
+    raw = raw.sort_values("time").reset_index(drop=True)
 
     print("Engineering features (dew point, wind U/V, cyclical time encoding, rain label)...")
     df = engineer_features(raw)
@@ -213,40 +225,57 @@ def main() -> None:
     y = df[TARGET_COLUMN]
     print(f"Rows after cleaning: {len(df)}  |  Rain rate: {y.mean():.2%}")
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
-    )
-    print(f"Train rows: {len(X_train)}  |  Test rows: {len(X_test)}")
+    # Chronological split: no future rows leak into training.
+    n = len(df)
+    test_start = int(n * (1 - TEST_FRACTION))
+    val_start = int(n * (1 - TEST_FRACTION - VAL_FRACTION))
+    X_train, y_train = X.iloc[:val_start], y.iloc[:val_start]
+    X_val, y_val = X.iloc[val_start:test_start], y.iloc[val_start:test_start]
+    X_test, y_test = X.iloc[test_start:], y.iloc[test_start:]
+    print(f"Train rows: {len(X_train)}  |  Val rows: {len(X_val)}  |  Test rows: {len(X_test)}")
 
-    models = {
-        "Random Forest": RandomForestClassifier(
-            n_estimators=100,
-            random_state=RANDOM_STATE,
-            n_jobs=-1,
-            class_weight="balanced",
-        ),
-        "Decision Tree": DecisionTreeClassifier(
-            random_state=RANDOM_STATE, class_weight="balanced"
-        ),
-        "Logistic Regression": LogisticRegression(
-            max_iter=5000, class_weight="balanced"
-        ),
-    }
+    def make_models() -> dict:
+        return {
+            "Random Forest": RandomForestClassifier(
+                n_estimators=300,
+                min_samples_leaf=5,
+                random_state=RANDOM_STATE,
+                n_jobs=-1,
+                class_weight="balanced_subsample",
+            ),
+            "Gradient Boosting": HistGradientBoostingClassifier(
+                max_iter=300,
+                learning_rate=0.05,
+                max_leaf_nodes=15,
+                min_samples_leaf=40,
+                l2_regularization=1.0,
+                random_state=RANDOM_STATE,
+                class_weight="balanced",
+            ),
+            "Decision Tree": DecisionTreeClassifier(
+                random_state=RANDOM_STATE, class_weight="balanced"
+            ),
+            "Logistic Regression": LogisticRegression(
+                max_iter=5000, class_weight="balanced"
+            ),
+        }
 
-    trained = {}
     results = []
-    for name, model in models.items():
+    val_f1 = {}
+    for name, model in make_models().items():
         print(f"\nTraining {name}...")
         model.fit(X_train, y_train)
-        trained[name] = model
+        val_f1[name] = f1_score(y_val, model.predict(X_val), zero_division=0)
         results.append(evaluate(name, model, X_test, y_test))
 
-    print("\nModel comparison (on held-out 20% test set):\n")
+    print("\nModel comparison (on chronological held-out test set, newest 20%):\n")
     print_comparison_table(results)
     print_confusion_matrices(results)
 
-    best_model_name = "Random Forest"
-    best_model = trained[best_model_name]
+    best_model_name = max(val_f1, key=val_f1.get)
+    print(f"\nBest on validation F1: {best_model_name} ({val_f1[best_model_name]:.4f})")
+    best_model = make_models()[best_model_name]
+    best_model.fit(X, y)  # refit on all data for deployment
 
     model_path = MODELS_DIR / "rain_model.joblib"
     dump(best_model, model_path)
@@ -263,7 +292,9 @@ def main() -> None:
         "rows_used": len(df),
         "rain_rate": round(float(y.mean()), 4),
         "rain_threshold_mm": RAIN_THRESHOLD_MM,
+        "split": "chronological (64% train / 16% validation / 20% test); metrics are on the test set from a train-only fit, deployed model is refit on all data",
         "train_rows": len(X_train),
+        "val_rows": len(X_val),
         "test_rows": len(X_test),
         "feature_columns": FEATURE_COLUMNS,
         "target_column": TARGET_COLUMN,
