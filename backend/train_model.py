@@ -304,7 +304,7 @@ def main() -> None:
     best_model.fit(X, y)  # refit on all data for deployment
 
     model_path = MODELS_DIR / "rain_model.joblib"
-    dump(best_model, model_path)
+    dump(best_model, model_path, compress=3)
     print(f"\nSaved {best_model_name} model to {model_path}")
 
     feature_columns_path = MODELS_DIR / "feature_columns.json"
@@ -322,7 +322,7 @@ def main() -> None:
     print_comparison_table([base_result])
     base_model = make_models()[best_model_name]
     base_model.fit(X[BASE_FEATURE_COLUMNS], y)
-    dump(base_model, MODELS_DIR / "rain_model_base.joblib")
+    dump(base_model, MODELS_DIR / "rain_model_base.joblib", compress=3)
     (MODELS_DIR / "feature_columns_base.json").write_text(json.dumps(BASE_FEATURE_COLUMNS, indent=2))
     print("Saved fallback model and its feature columns")
 
