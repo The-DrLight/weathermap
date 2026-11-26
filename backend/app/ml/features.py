@@ -6,7 +6,7 @@ and serving will disagree on what a feature means.
 """
 
 import math
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 
 def compute_dew_point(temp_c: float, relative_humidity: float) -> float:
@@ -22,6 +22,22 @@ def compute_wind_components(wind_speed: float, wind_direction_deg: float) -> tup
     u = -wind_speed * math.sin(direction_rad)
     v = -wind_speed * math.cos(direction_rad)
     return u, v
+
+
+LAGOS_TZ = timezone(timedelta(hours=1))  # West Africa Time, UTC+1, no DST
+
+
+def parse_local_time(timestamp: str) -> datetime:
+    """
+    Parse an ISO8601 timestamp into Lagos local time (the clock the model was
+    trained on). Timezone-aware timestamps (e.g. OpenWeatherMap's UTC) are
+    converted to UTC+1; naive ones are assumed to already be Lagos local time,
+    as Open-Meteo returns them.
+    """
+    dt = datetime.fromisoformat(timestamp)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(LAGOS_TZ)
+    return dt
 
 
 def compute_cyclical_time(dt: datetime) -> dict[str, float]:
@@ -101,7 +117,7 @@ def build_feature_dict(reading: dict, history: list[dict] | None = None) -> dict
     humidity = float(reading["relative_humidity_2m"])
     wind_speed = float(reading["wind_speed_10m"])
     wind_direction = float(reading["wind_direction_10m"])
-    dt = datetime.fromisoformat(reading["time"])
+    dt = parse_local_time(reading["time"])
 
     wind_u, wind_v = compute_wind_components(wind_speed, wind_direction)
 

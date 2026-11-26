@@ -71,3 +71,12 @@ def test_predictor_uses_history_model_and_falls_back():
     without_history = predictor.predict(reading)
     assert set(HISTORY_FEATURE_COLUMNS) <= set(with_history["features_used"])
     assert not set(HISTORY_FEATURE_COLUMNS) & set(without_history["features_used"])
+
+
+def test_utc_timestamps_are_converted_to_lagos_time():
+    from app.ml.features import parse_local_time
+
+    assert parse_local_time("2026-07-10T14:00:00+00:00").hour == 15  # UTC -> UTC+1
+    assert parse_local_time("2026-07-10T23:30:00+00:00").hour == 0  # crosses midnight
+    assert parse_local_time("2026-07-10T15:00:00").hour == 15  # naive = already local
+    assert parse_local_time("2026-07-10T15:00").hour == 15
