@@ -9,5 +9,14 @@
   "hour_sin",
   "hour_cos",
   "month_sin",
-  "month_cos"
+  "month_cos",
+  "dP_1h",
+  "dP_3h",
+  "dP_6h",
+  "dRH_3h",
+  "dT_3h",
+  "dCloud_3h",
+  "dDew_3h",
+  "rain_prev_1h",
+  "rain_prev_3h_sum"
 ]

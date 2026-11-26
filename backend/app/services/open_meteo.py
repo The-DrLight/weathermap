@@ -118,6 +118,54 @@ async def fetch_live_weather(lat: float | None = None, lon: float | None = None)
             return data
 
 
+HISTORY_CACHE_TTL_SECONDS = 600
+HISTORY_FIELDS = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "surface_pressure",
+    "cloud_cover",
+    "precipitation",
+]
+# Cache keyed like _live_cache, mapping to (hourly rows, fetched_at).
+_history_cache: dict[tuple[float, float], tuple[list[dict[str, Any]], datetime]] = {}
+
+
+async def fetch_recent_history(lat: float | None = None, lon: float | None = None) -> list[dict[str, Any]] | None:
+    """
+    The last 6 hours plus the current hour, as chronological hourly dicts, for the
+    model's trend features. Returns None if unavailable (callers then use the
+    snapshot-only model). Cached briefly to stay clear of Open-Meteo rate limits.
+    """
+    key = _cache_key(lat, lon)
+    cached = _history_cache.get(key)
+    if cached is not None and (datetime.now(timezone.utc) - cached[1]).total_seconds() < HISTORY_CACHE_TTL_SECONDS:
+        return cached[0]
+
+    params = {
+        "latitude": key[0],
+        "longitude": key[1],
+        "hourly": ",".join(HISTORY_FIELDS),
+        "past_hours": 6,
+        "forecast_hours": 1,
+        "timezone": "UTC",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(settings.open_meteo_base_url, params=params)
+            response.raise_for_status()
+        hourly = response.json()["hourly"]
+        rows = [
+            {"time": t, **{field: hourly[field][i] for field in HISTORY_FIELDS}}
+            for i, t in enumerate(hourly["time"])
+        ]
+    except (httpx.HTTPError, KeyError, ValueError) as exc:
+        logger.warning("open_meteo.fetch_recent_history: unavailable (%s), using stale cache if any", exc)
+        return cached[0] if cached is not None else None
+
+    _history_cache[key] = (rows, datetime.now(timezone.utc))
+    return rows
+
+
 async def _fetch_archive_fallback(lat: float | None, lon: float | None) -> dict[str, Any] | None:
     """Last resort when the forecast API is rate limited: yesterday's noon archive reading."""
     logger.info("open_meteo._fetch_archive_fallback: starting (lat=%s, lon=%s)", lat, lon)

@@ -72,7 +72,8 @@ BACKEND_DIR = Path(__file__).parent
 DATA_DIR = BACKEND_DIR / "data"
 MODELS_DIR = BACKEND_DIR / "models"
 
-FEATURE_COLUMNS = [
+# Snapshot-only features: used by the fallback model when no recent history is available.
+BASE_FEATURE_COLUMNS = [
     "temperature_2m",
     "relative_humidity_2m",
     "dew_point_2m",
@@ -85,6 +86,20 @@ FEATURE_COLUMNS = [
     "month_sin",
     "month_cos",
 ]
+# Trend and persistence features from the previous 6 hours (mirrors
+# app/ml/features.py:build_history_features).
+HISTORY_FEATURE_COLUMNS = [
+    "dP_1h",
+    "dP_3h",
+    "dP_6h",
+    "dRH_3h",
+    "dT_3h",
+    "dCloud_3h",
+    "dDew_3h",
+    "rain_prev_1h",
+    "rain_prev_3h_sum",
+]
+FEATURE_COLUMNS = BASE_FEATURE_COLUMNS + HISTORY_FEATURE_COLUMNS
 TARGET_COLUMN = "rained"
 
 
@@ -158,6 +173,17 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["month_cos"] = np.cos(2 * np.pi * month / 12)
 
     df[TARGET_COLUMN] = (df["precipitation"] >= RAIN_THRESHOLD_MM).astype(int)
+
+    # Trend/persistence features. The data is strictly hourly, so shift(n) is n hours back.
+    df["dP_1h"] = df["surface_pressure"] - df["surface_pressure"].shift(1)
+    df["dP_3h"] = df["surface_pressure"] - df["surface_pressure"].shift(3)
+    df["dP_6h"] = df["surface_pressure"] - df["surface_pressure"].shift(6)
+    df["dRH_3h"] = df["relative_humidity_2m"] - df["relative_humidity_2m"].shift(3)
+    df["dT_3h"] = df["temperature_2m"] - df["temperature_2m"].shift(3)
+    df["dCloud_3h"] = df["cloud_cover"] - df["cloud_cover"].shift(3)
+    df["dDew_3h"] = df["dew_point_2m"] - df["dew_point_2m"].shift(3)
+    df["rain_prev_1h"] = df[TARGET_COLUMN].shift(1)
+    df["rain_prev_3h_sum"] = sum(df[TARGET_COLUMN].shift(k) for k in (1, 2, 3))
 
     return df.dropna().reset_index(drop=True)
 
@@ -285,6 +311,21 @@ def main() -> None:
     feature_columns_path.write_text(json.dumps(FEATURE_COLUMNS, indent=2))
     print(f"Saved feature column order to {feature_columns_path}")
 
+    # Fallback model for when no recent weather history is available at prediction
+    # time: same algorithm, snapshot-only features.
+    base_eval_model = make_models()[best_model_name]
+    base_eval_model.fit(X_train[BASE_FEATURE_COLUMNS], y_train)
+    base_result = evaluate(
+        f"{best_model_name} (snapshot-only fallback)", base_eval_model, X_test[BASE_FEATURE_COLUMNS], y_test
+    )
+    print("\nFallback (no-history) model on the same test set:\n")
+    print_comparison_table([base_result])
+    base_model = make_models()[best_model_name]
+    base_model.fit(X[BASE_FEATURE_COLUMNS], y)
+    dump(base_model, MODELS_DIR / "rain_model_base.joblib")
+    (MODELS_DIR / "feature_columns_base.json").write_text(json.dumps(BASE_FEATURE_COLUMNS, indent=2))
+    print("Saved fallback model and its feature columns")
+
     report = {
         "trained_at": pd.Timestamp.utcnow().isoformat(),
         "years_of_history": YEARS_OF_HISTORY,
@@ -300,6 +341,8 @@ def main() -> None:
         "target_column": TARGET_COLUMN,
         "best_model": best_model_name,
         "results": results,
+        "fallback_feature_columns": BASE_FEATURE_COLUMNS,
+        "fallback_result": base_result,
     }
     report_path = MODELS_DIR / "training_report.json"
     report_path.write_text(json.dumps(report, indent=2))

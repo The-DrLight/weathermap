@@ -1,15 +1,97 @@
 {
-  "trained_at": "2026-11-24T09:52:26.914750+00:00",
+  "trained_at": "2026-11-26T19:45:15.824228+00:00",
   "years_of_history": 4,
   "rows_fetched": 35040,
-  "rows_used": 35040,
-  "rain_rate": 0.2718,
+  "rows_used": 35034,
+  "rain_rate": 0.2717,
   "rain_threshold_mm": 0.1,
   "split": "chronological (64% train / 16% validation / 20% test); metrics are on the test set from a train-only fit, deployed model is refit on all data",
-  "train_rows": 22425,
-  "val_rows": 5607,
-  "test_rows": 7008,
+  "train_rows": 22421,
+  "val_rows": 5606,
+  "test_rows": 7007,
   "feature_columns": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "dew_point_2m",
+    "surface_pressure",
+    "cloud_cover",
+    "wind_u",
+    "wind_v",
+    "hour_sin",
+    "hour_cos",
+    "month_sin",
+    "month_cos",
+    "dP_1h",
+    "dP_3h",
+    "dP_6h",
+    "dRH_3h",
+    "dT_3h",
+    "dCloud_3h",
+    "dDew_3h",
+    "rain_prev_1h",
+    "rain_prev_3h_sum"
+  ],
+  "target_column": "rained",
+  "best_model": "Random Forest",
+  "results": [
+    {
+      "model": "Random Forest",
+      "accuracy": 0.8453,
+      "precision": 0.7062,
+      "recall": 0.7557,
+      "f1_score": 0.7301,
+      "roc_auc": 0.9045,
+      "confusion_matrix": {
+        "true_negative": 4457,
+        "false_positive": 610,
+        "false_negative": 474,
+        "true_positive": 1466
+      }
+    },
+    {
+      "model": "Gradient Boosting",
+      "accuracy": 0.826,
+      "precision": 0.6488,
+      "recall": 0.8103,
+      "f1_score": 0.7206,
+      "roc_auc": 0.9012,
+      "confusion_matrix": {
+        "true_negative": 4216,
+        "false_positive": 851,
+        "false_negative": 368,
+        "true_positive": 1572
+      }
+    },
+    {
+      "model": "Decision Tree",
+      "accuracy": 0.7829,
+      "precision": 0.6138,
+      "recall": 0.5825,
+      "f1_score": 0.5977,
+      "roc_auc": 0.7211,
+      "confusion_matrix": {
+        "true_negative": 4356,
+        "false_positive": 711,
+        "false_negative": 810,
+        "true_positive": 1130
+      }
+    },
+    {
+      "model": "Logistic Regression",
+      "accuracy": 0.8317,
+      "precision": 0.6712,
+      "recall": 0.7691,
+      "f1_score": 0.7168,
+      "roc_auc": 0.8916,
+      "confusion_matrix": {
+        "true_negative": 4336,
+        "false_positive": 731,
+        "false_negative": 448,
+        "true_positive": 1492
+      }
+    }
+  ],
+  "fallback_feature_columns": [
     "temperature_2m",
     "relative_humidity_2m",
     "dew_point_2m",
@@ -22,64 +104,18 @@
     "month_sin",
     "month_cos"
   ],
-  "target_column": "rained",
-  "best_model": "Gradient Boosting",
-  "results": [
-    {
-      "model": "Random Forest",
-      "accuracy": 0.7875,
-      "precision": 0.6222,
-      "recall": 0.5918,
-      "f1_score": 0.6066,
-      "roc_auc": 0.8398,
-      "confusion_matrix": {
-        "true_negative": 4371,
-        "false_positive": 697,
-        "false_negative": 792,
-        "true_positive": 1148
-      }
-    },
-    {
-      "model": "Gradient Boosting",
-      "accuracy": 0.7738,
-      "precision": 0.5722,
-      "recall": 0.7253,
-      "f1_score": 0.6397,
-      "roc_auc": 0.8416,
-      "confusion_matrix": {
-        "true_negative": 4016,
-        "false_positive": 1052,
-        "false_negative": 533,
-        "true_positive": 1407
-      }
-    },
-    {
-      "model": "Decision Tree",
-      "accuracy": 0.7474,
-      "precision": 0.5512,
-      "recall": 0.4716,
-      "f1_score": 0.5083,
-      "roc_auc": 0.6623,
-      "confusion_matrix": {
-        "true_negative": 4323,
-        "false_positive": 745,
-        "false_negative": 1025,
-        "true_positive": 915
-      }
-    },
-    {
-      "model": "Logistic Regression",
-      "accuracy": 0.7523,
-      "precision": 0.5456,
-      "recall": 0.6289,
-      "f1_score": 0.5843,
-      "roc_auc": 0.8093,
-      "confusion_matrix": {
-        "true_negative": 4052,
-        "false_positive": 1016,
-        "false_negative": 720,
-        "true_positive": 1220
-      }
+  "fallback_result": {
+    "model": "Random Forest (snapshot-only fallback)",
+    "accuracy": 0.7878,
+    "precision": 0.623,
+    "recall": 0.5912,
+    "f1_score": 0.6067,
+    "roc_auc": 0.8412,
+    "confusion_matrix": {
+      "true_negative": 4373,
+      "false_positive": 694,
+      "false_negative": 793,
+      "true_positive": 1147
     }
-  ]
+  }
 }

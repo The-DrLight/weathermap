@@ -50,14 +50,22 @@ def _extract_current_reading(live_data: dict) -> LiveReading:
 
 async def _fetch_noon_reading(day: date, lat: float | None = None, lon: float | None = None) -> dict | None:
     """Fetch that day's noon (12:00 local) hourly reading from the Open-Meteo archive."""
-    archive_data = await open_meteo.fetch_historical_weather(day, day, lat, lon)
+    # Fetch the previous day too so the 6 hours before noon are available for trend features.
+    archive_data = await open_meteo.fetch_historical_weather(day - timedelta(days=1), day, lat, lon)
     hourly = archive_data.get("hourly", {})
     times = hourly.get("time", [])
 
-    noon_index = next((i for i, t in enumerate(times) if t.endswith("T12:00")), None)
+    noon_index = next((i for i, t in enumerate(times) if t == f"{day.isoformat()}T12:00"), None)
     if noon_index is None:
         return None
 
+    history = [
+        {
+            field: hourly[field][i]
+            for field in ("temperature_2m", "relative_humidity_2m", "surface_pressure", "cloud_cover", "precipitation")
+        }
+        for i in range(max(0, noon_index - 6), noon_index + 1)
+    ]
     return {
         "temperature_2m": hourly["temperature_2m"][noon_index],
         "relative_humidity_2m": hourly["relative_humidity_2m"][noon_index],
@@ -66,6 +74,7 @@ async def _fetch_noon_reading(day: date, lat: float | None = None, lon: float | 
         "wind_speed_10m": hourly["wind_speed_10m"][noon_index],
         "wind_direction_10m": hourly["wind_direction_10m"][noon_index],
         "time": times[noon_index],
+        "history": history,
     }
 
 
@@ -148,14 +157,17 @@ async def predict_rain(
 ):
     """Predict rain from a passed-in reading, or from a live Open-Meteo fetch if no body is sent."""
     logger.info("POST /predict (manual_payload=%s, lat=%s, lon=%s)", payload is not None, lat, lon)
+    history = None
     if payload is not None:
         reading_dict = payload.model_dump()
     else:
         live_data = await open_meteo.fetch_live_weather(lat, lon)
         reading_dict = _extract_current_reading(live_data).model_dump()
+        # Recent hours feed the trend features; None falls back to the snapshot-only model.
+        history = await open_meteo.fetch_recent_history(lat, lon)
 
     try:
-        result = rain_predictor.predict(reading_dict)
+        result = rain_predictor.predict(reading_dict, history)
     except ModelNotTrainedError as exc:
         logger.error("POST /predict: model not trained, returning 503")
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -225,7 +237,7 @@ async def compare_with_nasa(
             continue
 
         try:
-            prediction = rain_predictor.predict(noon_reading)
+            prediction = rain_predictor.predict(noon_reading, noon_reading.get("history"))
         except ModelNotTrainedError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 

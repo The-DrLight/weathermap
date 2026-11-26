@@ -1,0 +1,13 @@
+[
+  "temperature_2m",
+  "relative_humidity_2m",
+  "dew_point_2m",
+  "surface_pressure",
+  "cloud_cover",
+  "wind_u",
+  "wind_v",
+  "hour_sin",
+  "hour_cos",
+  "month_sin",
+  "month_cos"
+]
