@@ -1,15 +1,16 @@
 import { useState } from "react";
+import Card from "./Card";
 
 const FIELDS = [
   { name: "temperature_2m", label: "Temperature", unit: "°C", step: "0.1", min: 0, max: 50 },
   { name: "relative_humidity_2m", label: "Relative Humidity", unit: "%", step: "1", min: 0, max: 100 },
-  { name: "surface_pressure", label: "Atmospheric Pressure", unit: "hPa", step: "0.1", min: 900, max: 1100 },
+  { name: "surface_pressure", label: "Pressure", unit: "hPa", step: "0.1", min: 900, max: 1100 },
   { name: "wind_speed_10m", label: "Wind Speed", unit: "km/h", step: "0.1", min: 0, max: 150 },
   { name: "wind_direction_10m", label: "Wind Direction", unit: "°", step: "1", min: 0, max: 360 },
   { name: "cloud_cover", label: "Cloud Cover", unit: "%", step: "1", min: 0, max: 100 },
 ];
 
-export default function ManualInputForm({ initialValues, onSubmit, submitting }) {
+export default function ManualInputForm({ initialValues, onSubmit, submitting, className = "" }) {
   const [values, setValues] = useState(initialValues);
 
   const handleChange = (name) => (e) => {
@@ -25,42 +26,38 @@ export default function ManualInputForm({ initialValues, onSubmit, submitting })
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-2xl border border-navy-700 bg-navy-900/60 p-4 sm:p-6"
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-100">Manual Sensor Input</h2>
-        <span className="text-xs text-slate-500">Pre-filled from the last live reading</span>
-      </div>
+    <Card title="Manual Sensor Input" subtitle="Pre-filled from the last live reading" className={className}>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          {FIELDS.map(({ name, label, unit, step, min, max }) => (
+            <label key={name} className="block min-w-0">
+              <span className="mb-1 block truncate text-xs font-medium text-muted">
+                {label} <span className="text-subtle">({unit})</span>
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step={step}
+                min={min}
+                max={max}
+                value={values[name] ?? ""}
+                onChange={handleChange(name)}
+                required
+                // text-base (16px) stops iOS Safari from zooming the page when a field is focused.
+                className="block h-11 w-full rounded-lg border border-line bg-inset px-3 text-base tabular-nums text-fg focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </label>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {FIELDS.map(({ name, label, unit, step, min, max }) => (
-          <label key={name} className="block text-sm">
-            <span className="mb-1 block text-xs font-medium text-slate-400">
-              {label} ({unit})
-            </span>
-            <input
-              type="number"
-              step={step}
-              min={min}
-              max={max}
-              value={values[name] ?? ""}
-              onChange={handleChange(name)}
-              required
-              className="w-full rounded-lg border border-navy-700 bg-navy-950/60 px-3 py-2 text-slate-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-            />
-          </label>
-        ))}
-      </div>
-
-      <button
-        type="submit"
-        disabled={submitting}
-        className="mt-5 w-full rounded-lg bg-teal-500 px-4 py-2.5 font-semibold text-navy-950 transition hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-      >
-        {submitting ? "Running Prediction…" : "Run Prediction"}
-      </button>
-    </form>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mt-5 h-11 w-full rounded-lg bg-accent-strong px-6 font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {submitting ? "Running Prediction…" : "Run Prediction"}
+        </button>
+      </form>
+    </Card>
   );
 }

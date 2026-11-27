@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useWeatherData } from "./hooks/useWeatherData";
+import { useTheme } from "./hooks/useTheme";
 import { postPrediction } from "./services/api";
 import { nowInLagos } from "./utils/lagosTime";
 import SystemStatusBar from "./components/SystemStatusBar";
@@ -7,6 +8,7 @@ import ModeToggle from "./components/ModeToggle";
 import LiveReadings from "./components/LiveReadings";
 import ManualInputForm from "./components/ManualInputForm";
 import PredictionCard from "./components/PredictionCard";
+import ModelInputsCard from "./components/ModelInputsCard";
 import ValidationPanel from "./components/ValidationPanel";
 import NasaComparisonPanel from "./components/NasaComparisonPanel";
 
@@ -30,6 +32,7 @@ export default function App() {
     locationStatus,
     locationNotice,
   } = useWeatherData();
+  const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState("live");
   const [manualPrediction, setManualPrediction] = useState(null);
   const [manualSubmitting, setManualSubmitting] = useState(false);
@@ -72,43 +75,54 @@ export default function App() {
   const displayedLoading = mode === "live" ? loading : manualSubmitting;
 
   return (
-    <div className="min-h-screen bg-navy-950 text-slate-100">
-      <SystemStatusBar weather={weather} error={error} coords={coords} locationStatus={locationStatus} />
+    <div className="min-h-screen bg-canvas text-fg">
+      <SystemStatusBar
+        error={error}
+        coords={coords}
+        locationStatus={locationStatus}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
-        <header className="flex flex-wrap items-start justify-between gap-4">
+      <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-50 sm:text-3xl">
+            <h1 className="text-xl font-bold tracking-tight text-fg sm:text-3xl">
               Lagos Smart Weather Prediction System
             </h1>
-            <p className="mt-1 text-sm text-slate-400">EEG 323: Instrumentation and Measurement II</p>
+            <p className="mt-1 text-sm text-subtle">EEG 323: Instrumentation and Measurement II</p>
           </div>
           <ModeToggle mode={mode} onChange={handleModeChange} />
-        </header>
+        </div>
 
         {locationStatus === "requesting" && (
-          <div className="rounded-xl border border-navy-700 bg-navy-900/60 px-4 py-3 text-sm text-slate-300">
+          <div className="mb-4 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted sm:mb-6">
             Requesting location access...
           </div>
         )}
 
         {locationNotice && (
-          <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">
+          <div className="mb-4 rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn sm:mb-6">
             {locationNotice}
           </div>
         )}
-
-        <LiveReadings current={weather?.current} loading={loading} />
 
         {mode === "manual" && (
           <ManualInputForm
             initialValues={initialManualValues}
             onSubmit={handleManualSubmit}
             submitting={manualSubmitting}
+            className="mb-4 sm:mb-6"
           />
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/*
+          12-column grid. On phones and tablets everything stacks in reading order, with the
+          prediction first because it is the headline answer. From lg up, readings (7 cols)
+          and the prediction (5 cols) share the top row and the two reference tables share
+          the bottom row.
+        */}
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
           <PredictionCard
             prediction={displayedPrediction}
             loading={displayedLoading}
@@ -117,11 +131,18 @@ export default function App() {
             emptyMessage={
               mode === "manual" ? "Submit the form above to run a prediction." : undefined
             }
+            className="lg:col-span-5 lg:col-start-8 lg:row-start-1"
           />
-          <ValidationPanel validation={validation} loading={loading} />
+          <LiveReadings
+            current={weather?.current}
+            loading={loading}
+            source={weather?.source}
+            className="lg:col-span-7 lg:col-start-1 lg:row-start-1"
+          />
+          <ModelInputsCard features={displayedPrediction?.features_used} className="lg:col-span-12" />
+          <ValidationPanel validation={validation} loading={loading} className="lg:col-span-5" />
+          <NasaComparisonPanel coords={coords} className="lg:col-span-7" />
         </div>
-
-        <NasaComparisonPanel coords={coords} />
       </main>
     </div>
   );

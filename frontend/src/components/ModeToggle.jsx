@@ -5,15 +5,21 @@ const MODES = [
 
 export default function ModeToggle({ mode, onChange }) {
   return (
-    <div className="inline-flex rounded-lg border border-navy-700 bg-navy-900/60 p-1 text-sm">
+    <div
+      role="group"
+      aria-label="Data mode"
+      className="grid w-full grid-cols-2 gap-1 rounded-xl border border-line bg-inset p-1 text-sm sm:inline-grid sm:w-auto"
+    >
       {MODES.map(({ value, label }) => (
         <button
           key={value}
           type="button"
           onClick={() => onChange(value)}
           aria-pressed={mode === value}
-          className={`rounded-md px-3 py-1.5 font-medium transition ${
-            mode === value ? "bg-teal-500 text-navy-950" : "text-slate-400 hover:text-slate-200"
+          className={`min-h-10 whitespace-nowrap rounded-lg px-4 py-2 font-medium transition ${
+            mode === value
+              ? "bg-accent-strong text-on-accent shadow-sm"
+              : "text-muted hover:text-fg"
           }`}
         >
           {label}

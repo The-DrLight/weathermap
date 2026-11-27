@@ -1,61 +1,99 @@
-export default function ValidationPanel({ validation, loading }) {
+import Card from "./Card";
+
+const METRICS = [
+  { key: "accuracy", label: "Accuracy" },
+  { key: "precision", label: "Precision" },
+  { key: "recall", label: "Recall" },
+  { key: "f1_score", label: "F1" },
+];
+
+const pct = (value) => `${(value * 100).toFixed(1)}%`;
+
+function ActiveBadge() {
+  return (
+    <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+      ACTIVE
+    </span>
+  );
+}
+
+export default function ValidationPanel({ validation, loading, className = "" }) {
   if (!validation) {
     return (
-      <section className="rounded-2xl border border-navy-700 bg-navy-900/60 p-6">
-        <h2 className="mb-2 text-lg font-semibold text-slate-100">Model Validation</h2>
-        <p className="text-sm text-slate-400">
+      <Card title="Model Validation" className={className}>
+        <p className="text-sm text-muted">
           {loading ? "Loading training report…" : "No training report available."}
         </p>
-      </section>
+      </Card>
     );
   }
 
-  return (
-    <section className="rounded-2xl border border-navy-700 bg-navy-900/60 p-4 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-100">Model Validation</h2>
-        <span className="text-xs text-slate-500">
-          Trained on {validation.rows_used?.toLocaleString()} hourly rows · {validation.years_of_history}y history
-        </span>
-      </div>
+  const results = validation.results ?? [];
 
-      <div className="overflow-x-auto rounded-lg border border-navy-700">
-        <table className="w-full min-w-[480px] text-left text-sm">
+  return (
+    <Card
+      title="Model Validation"
+      subtitle={`Trained on ${validation.rows_used?.toLocaleString()} hourly rows · ${validation.years_of_history}y history · scored on the newest 20%`}
+      className={className}
+    >
+      {/* Phones: one card per model. Tablets and up: a compact table. */}
+      <ul className="space-y-3 sm:hidden">
+        {results.map((r) => {
+          const isBest = r.model === validation.best_model;
+          return (
+            <li
+              key={r.model}
+              className={`rounded-xl border p-3 ${isBest ? "border-accent/40 bg-accent-soft" : "border-line bg-inset"}`}
+            >
+              <p className={`mb-2 text-sm font-semibold ${isBest ? "text-accent" : "text-fg"}`}>
+                {r.model}
+                {isBest && <ActiveBadge />}
+              </p>
+              <dl className="grid grid-cols-4 gap-2 text-center">
+                {METRICS.map(({ key, label }) => (
+                  <div key={key}>
+                    <dt className="text-[10px] uppercase tracking-wide text-subtle">{label}</dt>
+                    <dd className="font-mono text-xs tabular-nums text-fg">{pct(r[key])}</dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-line sm:block">
+        <table className="w-full text-left text-sm">
           <thead>
-            <tr className="bg-navy-950/60 text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-3 py-2">Model</th>
-              <th className="px-3 py-2 text-right">Accuracy</th>
-              <th className="px-3 py-2 text-right">Precision</th>
-              <th className="px-3 py-2 text-right">Recall</th>
-              <th className="px-3 py-2 text-right">F1</th>
+            <tr className="bg-inset text-xs uppercase tracking-wide text-subtle">
+              <th className="px-3 py-2 font-medium">Model</th>
+              {METRICS.map(({ key, label }) => (
+                <th key={key} className="px-3 py-2 text-right font-medium">
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody>
-            {validation.results?.map((r) => {
+          <tbody className="divide-y divide-line">
+            {results.map((r) => {
               const isBest = r.model === validation.best_model;
               return (
-                <tr
-                  key={r.model}
-                  className={isBest ? "bg-teal-500/10" : "odd:bg-navy-900/40 even:bg-navy-950/40"}
-                >
-                  <td className={`px-3 py-2 font-medium ${isBest ? "text-teal-300" : "text-slate-200"}`}>
+                <tr key={r.model} className={isBest ? "bg-accent-soft" : ""}>
+                  <td className={`whitespace-nowrap px-3 py-2.5 font-medium ${isBest ? "text-accent" : "text-fg"}`}>
                     {r.model}
-                    {isBest && (
-                      <span className="ml-2 rounded-full bg-teal-500/20 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
-                        ACTIVE
-                      </span>
-                    )}
+                    {isBest && <ActiveBadge />}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono text-slate-300">{(r.accuracy * 100).toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-right font-mono text-slate-300">{(r.precision * 100).toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-right font-mono text-slate-300">{(r.recall * 100).toFixed(1)}%</td>
-                  <td className="px-3 py-2 text-right font-mono text-slate-300">{(r.f1_score * 100).toFixed(1)}%</td>
+                  {METRICS.map(({ key }) => (
+                    <td key={key} className="px-3 py-2.5 text-right font-mono tabular-nums text-muted">
+                      {pct(r[key])}
+                    </td>
+                  ))}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-    </section>
+    </Card>
   );
 }
